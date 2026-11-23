@@ -1,6 +1,6 @@
 //! UI-related utilities
 
-use gpui::App;
+use gpui::{App, SharedString};
 use theme::ActiveTheme;
 
 mod apca_contrast;
@@ -22,6 +22,15 @@ pub use format_distance::*;
 pub use retained_focus::*;
 pub use search_input::*;
 pub use with_rem_size::*;
+
+/// 按当前语言翻译一段固定的界面文本。未收录的文本原样返回。
+pub(crate) fn localize_label(label: impl Into<SharedString>) -> SharedString {
+    let label: SharedString = label.into();
+    match i18n::translate(label.as_ref()) {
+        Some(translated) => translated.into(),
+        None => label,
+    }
+}
 
 /// Returns true if the current theme is light or vibrant light.
 pub fn is_light(cx: &mut App) -> bool {

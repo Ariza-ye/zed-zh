@@ -3391,6 +3391,7 @@ dependencies = [
  "fuzzy_nucleo",
  "go_to_line",
  "gpui",
+ "i18n",
  "language",
  "log",
  "menu",
@@ -8418,6 +8419,13 @@ dependencies = [
  "tokio",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "i18n"
+version = "0.1.0"
+dependencies = [
+ "phf 0.13.1",
 ]
 
 [[package]]
@@ -19315,6 +19323,7 @@ dependencies = [
  "gpui",
  "gpui_macros",
  "gpui_util",
+ "i18n",
  "icons",
  "itertools 0.14.0",
  "log",
@@ -22533,7 +22542,7 @@ dependencies = [
 
 [[package]]
 name = "zed"
-version = "1.31.0"
+version = "1.31.1"
 dependencies = [
  "acp_thread",
  "acp_tools",
@@ -22601,6 +22610,7 @@ dependencies = [
  "gpui_tokio",
  "hang_telemetry",
  "http_client",
+ "i18n",
  "image",
  "image_viewer",
  "input_latency_ui",

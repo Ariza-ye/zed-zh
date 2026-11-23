@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::ops::Range;
 
-use crate::utils::replace_control_characters;
+use crate::utils::{localize_label, replace_control_characters};
 use crate::{LabelLike, prelude::*};
 use gpui::{HighlightStyle, StyleRefinement, StyledText, TextAlign};
 
@@ -53,7 +53,7 @@ impl Label {
     pub fn new(label: impl Into<SharedString>) -> Self {
         Self {
             base: LabelLike::new(),
-            label: label.into(),
+            label: localize_label(label),
             render_code_spans: false,
         }
     }
@@ -67,7 +67,7 @@ impl Label {
 
     /// Sets the text of the [`Label`].
     pub fn set_text(&mut self, text: impl Into<SharedString>) {
-        self.label = text.into();
+        self.label = localize_label(text);
     }
 
     /// Truncates the label from the start, keeping the end visible.

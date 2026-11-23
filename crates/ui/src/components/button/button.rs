@@ -103,7 +103,7 @@ impl Button {
     pub fn new(id: impl Into<ElementId>, label: impl Into<SharedString>) -> Self {
         Self {
             base: ButtonLike::new(id),
-            label: label.into(),
+            label: crate::utils::localize_label(label),
             label_color: None,
             label_size: None,
             selected_label: None,

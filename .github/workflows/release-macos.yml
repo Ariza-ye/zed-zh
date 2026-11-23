@@ -1,0 +1,175 @@
+# 打任意 tag 后构建 macOS dmg 并上传到对应 Release。
+#
+# 注意：上游的 .github/workflows/release.yml 也在 v* tag 上触发，且用的是自托管 runner。
+# 在 fork 里那些 runner 不存在，Job 会一直 pending 直到超时。请在仓库的
+# Settings -> Actions -> General 里禁用上游的 release 工作流，或者删掉那个文件。
+#
+# 无签名证书时会走 script/bundle-mac 的 ad-hoc 签名分支：dmg 能用，但用户首次打开
+# 需要右键「打开」，或者执行 `xattr -dr com.apple.quarantine /Applications/Zed.app`。
+# 配好下面那组 secrets 就会自动正式签名并公证，不再需要这一步。
+
+name: release-macos
+
+on:
+  push:
+    tags:
+      - "*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 发布到哪个已有 tag
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_INCREMENTAL: "0"
+  RUST_BACKTRACE: "1"
+
+jobs:
+  build:
+    name: 构建 ${{ matrix.arch }} dmg
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # macos-26 系列自带 Xcode 26 / SDK 26，bundle-mac 会硬性检查 SDK >= 26
+          - arch: aarch64
+            runner: macos-26
+            triple: aarch64-apple-darwin
+          - arch: x86_64
+            runner: macos-26-intel
+            triple: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    # Zed 全量 release 编译在 4 核 runner 上一到两小时属于正常
+    timeout-minutes: 240
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_TAG }}
+
+      - name: 安装项目要求的 Rust 工具链
+        run: |
+          rustup show
+          rustc --version
+
+      - name: 缓存 cargo 依赖
+        uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.arch }}-release
+          cache-targets: true
+
+      - name: 缓存 cargo 安装的打包工具
+        uses: actions/cache@v4
+        with:
+          # 只缓存这两个可执行文件：整个 ~/.cargo/bin 里有 rustup 自己的二进制，覆盖会出问题
+          path: |
+            ~/.cargo/bin/cargo-bundle
+            ~/.cargo/bin/cargo-about
+          key: cargo-tools-${{ runner.os }}-${{ matrix.arch }}-v1
+
+      - name: 清理磁盘空间
+        run: |
+          # 标准 runner 只剩约 14G，Zed 的 release 构建放不下。保留默认 Xcode，删掉其余预装
+          default_xcode=$(xcode-select -p | sed 's|/Contents/Developer||')
+          default_real=$(cd "$default_xcode" && pwd -P)
+          echo "保留 $default_real"
+          for app in /Applications/Xcode*.app; do
+            # Xcode.app 通常是指向 Xcode_26.x.app 的符号链接，必须比较真实路径
+            app_real=$(cd "$app" 2>/dev/null && pwd -P) || continue
+            if [ "$app_real" = "$default_real" ]; then continue; fi
+            echo "删除 $app"
+            sudo rm -rf "$app"
+          done
+          sudo rm -rf /usr/local/share/dotnet /Library/Frameworks/Mono.framework || true
+          df -h /
+
+      - name: 安装构建依赖
+        run: brew install cmake
+
+      - name: 打印工具链与磁盘
+        run: |
+          sw_vers
+          xcode-select -p
+          xcodebuild -version
+          xcrun --sdk macosx --show-sdk-version
+          node --version
+          df -h /
+
+      - name: 构建 dmg
+        run: ./script/bundle-mac ${{ matrix.triple }}
+        env:
+          # 配了这五个 secret 才会正式签名 + 公证，缺任意一个都会退回 ad-hoc 签名
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARIZATION_KEY: ${{ secrets.APPLE_NOTARIZATION_KEY }}
+          APPLE_NOTARIZATION_KEY_ID: ${{ secrets.APPLE_NOTARIZATION_KEY_ID }}
+          APPLE_NOTARIZATION_ISSUER_ID: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
+
+      - name: 检查产物
+        run: |
+          ls -lh target/${{ matrix.triple }}/release/*.dmg
+          (cd target/${{ matrix.triple }}/release && shasum -a 256 -b Zed-${{ matrix.arch }}.dmg) \
+            > Zed-${{ matrix.arch }}.dmg.sha256
+          cat Zed-${{ matrix.arch }}.dmg.sha256
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: Zed-${{ matrix.arch }}
+          path: |
+            target/${{ matrix.triple }}/release/Zed-${{ matrix.arch }}.dmg
+            Zed-${{ matrix.arch }}.dmg.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: 发布到 Release
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
+    steps:
+      - name: 下载构建产物
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: 列出文件
+        run: ls -lh dist
+
+      - name: 创建或更新 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          name: ${{ env.RELEASE_TAG }}
+          files: |
+            dist/*.dmg
+            dist/*.sha256
+          fail_on_unmatched_files: true
+          body: |
+            ## 安装
+
+            1. 下载对应架构的 dmg：Apple Silicon 用 `aarch64`，Intel Mac 用 `x86_64`
+            2. 打开 dmg，把 Zed 拖进「应用程序」
+
+            如果 macOS 提示「无法验证开发者」，首次打开请右键点 Zed 图标选择「打开」，
+            或者执行：
+
+            ```sh
+            xattr -dr com.apple.quarantine /Applications/Zed.app
+            ```
+
+            校验安装包：
+
+            ```sh
+            shasum -a 256 -c Zed-aarch64.dmg.sha256
+            ```

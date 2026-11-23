@@ -7,6 +7,46 @@ use terminal_view::terminal_panel;
 use zed_actions::{Quit, assistant, debug_panel, dev, git_panel, project_panel};
 
 pub fn app_menus(cx: &mut App) -> Vec<Menu> {
+    localize_menus(build_menus(cx))
+}
+
+/// 把菜单树里的名字换成中文。系统菜单(Services 等)由操作系统渲染,保持原样。
+fn localize_menus(menus: Vec<Menu>) -> Vec<Menu> {
+    menus.into_iter().map(localize_menu).collect()
+}
+
+fn localize_menu(mut menu: Menu) -> Menu {
+    if let Some(translated) = i18n::translate(menu.name.as_ref()) {
+        menu.name = translated.into();
+    }
+    menu.items = menu.items.into_iter().map(localize_menu_item).collect();
+    menu
+}
+
+fn localize_menu_item(item: MenuItem) -> MenuItem {
+    match item {
+        MenuItem::Separator | MenuItem::SystemMenu(_) => item,
+        MenuItem::Submenu(submenu) => MenuItem::Submenu(localize_menu(submenu)),
+        MenuItem::Action {
+            name,
+            action,
+            os_action,
+            checked,
+            disabled,
+        } => MenuItem::Action {
+            name: match i18n::translate(name.as_ref()) {
+                Some(translated) => translated.into(),
+                None => name,
+            },
+            action,
+            os_action,
+            checked,
+            disabled,
+        },
+    }
+}
+
+fn build_menus(cx: &mut App) -> Vec<Menu> {
     let mut view_items = vec![
         MenuItem::action(
             "Zoom In",

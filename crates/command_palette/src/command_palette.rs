@@ -861,7 +861,17 @@ impl PickerDelegate for CommandPaletteDelegate {
     }
 }
 
+/// 把 action 全名转成展示用的名称。已汉化的命令输出中文,其余回退英文。
 pub fn humanize_action_name(name: &str) -> String {
+    if let Some(translated) = i18n::translate_action(name) {
+        return translated.to_string();
+    }
+
+    let humanized = humanize_action_name_english(name);
+    i18n::translate_phrase(&humanized).unwrap_or(humanized)
+}
+
+fn humanize_action_name_english(name: &str) -> String {
     let chars = name.chars().collect::<Vec<_>>();
     let capacity = name.len() + chars.iter().filter(|c| c.is_uppercase()).count();
     let mut result = String::with_capacity(capacity);
@@ -952,30 +962,38 @@ mod tests {
     #[test]
     fn test_humanize_action_name() {
         assert_eq!(
-            humanize_action_name("editor::GoToDefinition"),
+            humanize_action_name_english("editor::GoToDefinition"),
             "editor: go to definition"
         );
         assert_eq!(
-            humanize_action_name("editor::Backspace"),
+            humanize_action_name_english("editor::Backspace"),
             "editor: backspace"
         );
         assert_eq!(
-            humanize_action_name("go_to_line::Deploy"),
+            humanize_action_name_english("go_to_line::Deploy"),
             "go to line: deploy"
         );
         assert_eq!(
-            humanize_action_name("agent::OpenGlobalAGENTS.mdRules"),
+            humanize_action_name_english("agent::OpenGlobalAGENTS.mdRules"),
             "agent: open global AGENTS.md rules"
         );
         assert_eq!(
-            humanize_action_name("agent::OpenProjectAGENTS.mdRules"),
+            humanize_action_name_english("agent::OpenProjectAGENTS.mdRules"),
             "agent: open project AGENTS.md rules"
         );
-        assert_eq!(humanize_action_name("editor::OpenURL"), "editor: open URL");
         assert_eq!(
-            humanize_action_name("editor::OpenURLParser"),
+            humanize_action_name_english("editor::OpenURL"),
+            "editor: open URL"
+        );
+        assert_eq!(
+            humanize_action_name_english("editor::OpenURLParser"),
             "editor: open URL parser"
         );
+    }
+
+    #[test]
+    fn test_humanize_action_name_translates() {
+        assert_eq!(humanize_action_name("editor::GoToDefinition"), "编辑器: 转到定义");
     }
 
     #[test]
