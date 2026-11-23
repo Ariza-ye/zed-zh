@@ -536,7 +536,7 @@ Note that a save will be triggered when an unsaved tab is closed, even if this i
 
 - Description: Whether or not to automatically check for updates.
 - Setting: `auto_update`
-- Default: `true`
+- Default: `false`
 
 **Options**
 
