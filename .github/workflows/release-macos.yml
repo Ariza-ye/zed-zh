@@ -1,8 +1,7 @@
-# 打任意 tag 后构建 macOS dmg 并上传到对应 Release。
+# 仅手动触发：Actions -> release-macos -> Run workflow，填入一个已存在的 tag。
 #
-# 注意：上游的 .github/workflows/release.yml 也在 v* tag 上触发，且用的是自托管 runner。
-# 在 fork 里那些 runner 不存在，Job 会一直 pending 直到超时。请在仓库的
-# Settings -> Actions -> General 里禁用上游的 release 工作流，或者删掉那个文件。
+# 这里刻意不挂 push tag 事件。上游的 release.yml 已在 tag 上触发，用的是自托管 runner，
+# fork 里那些 runner 不存在，自动触发只会把 Job 卡到超时。
 #
 # 无签名证书时会走 script/bundle-mac 的 ad-hoc 签名分支：dmg 能用，但用户首次打开
 # 需要右键「打开」，或者执行 `xattr -dr com.apple.quarantine /Applications/Zed.app`。
@@ -11,9 +10,6 @@
 name: release-macos
 
 on:
-  push:
-    tags:
-      - "*"
   workflow_dispatch:
     inputs:
       tag:
