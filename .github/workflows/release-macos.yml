@@ -109,10 +109,10 @@ jobs:
           APPLE_NOTARIZATION_ISSUER_ID: ${{ secrets.APPLE_NOTARIZATION_ISSUER_ID }}
 
       - name: 检查产物
+        working-directory: target/${{ matrix.triple }}/release
         run: |
-          ls -lh target/${{ matrix.triple }}/release/*.dmg
-          (cd target/${{ matrix.triple }}/release && shasum -a 256 -b Zed-${{ matrix.arch }}.dmg) \
-            > Zed-${{ matrix.arch }}.dmg.sha256
+          ls -lh Zed-${{ matrix.arch }}.dmg
+          shasum -a 256 -b Zed-${{ matrix.arch }}.dmg > Zed-${{ matrix.arch }}.dmg.sha256
           cat Zed-${{ matrix.arch }}.dmg.sha256
 
       - name: 上传构建产物
@@ -121,7 +121,7 @@ jobs:
           name: Zed-${{ matrix.arch }}
           path: |
             target/${{ matrix.triple }}/release/Zed-${{ matrix.arch }}.dmg
-            Zed-${{ matrix.arch }}.dmg.sha256
+            target/${{ matrix.triple }}/release/Zed-${{ matrix.arch }}.dmg.sha256
           if-no-files-found: error
           retention-days: 7
 
