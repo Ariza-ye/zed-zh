@@ -2,6 +2,7 @@ use std::borrow::Borrow;
 use std::rc::Rc;
 
 use crate::prelude::*;
+use crate::utils::localize_label;
 use crate::{Color, KeyBinding, Label, LabelSize, StyledExt, h_flex, v_flex};
 use gpui::{Action, AnyElement, AnyView, AppContext, FocusHandle, IntoElement, Render};
 
@@ -27,7 +28,7 @@ impl From<SharedString> for Title {
 impl RenderOnce for Title {
     fn render(self, window: &mut Window, cx: &mut App) -> impl gpui::IntoElement {
         match self {
-            Title::Str(title) => title.into_any_element(),
+            Title::Str(title) => localize_label(title).into_any_element(),
             Title::Callback(element) => element(window, cx),
         }
     }

@@ -7226,12 +7226,42 @@ impl Window {
             .collect::<Vec<_>>();
 
         let receiver = match &prompt_builder {
-            PromptBuilder::Default => self
-                .platform_window
-                .prompt(level, message, detail, &answers)
-                .unwrap_or_else(|| {
-                    self.build_custom_prompt(&prompt_builder, level, message, detail, &answers, cx)
-                }),
+            PromptBuilder::Default => {
+                let translate = cx.native_prompt_text;
+                let native_answers: Vec<_> = answers
+                    .iter()
+                    .cloned()
+                    .map(|mut answer| {
+                        let label = match &mut answer {
+                            PromptButton::Ok(label)
+                            | PromptButton::Cancel(label)
+                            | PromptButton::Other(label) => label,
+                        };
+                        let translated = translate(label);
+                        if translated != label.as_ref() {
+                            *label = SharedString::new(translated);
+                        }
+                        answer
+                    })
+                    .collect();
+                self.platform_window
+                    .prompt(
+                        level,
+                        translate(message),
+                        detail.map(translate),
+                        &native_answers,
+                    )
+                    .unwrap_or_else(|| {
+                        self.build_custom_prompt(
+                            &prompt_builder,
+                            level,
+                            message,
+                            detail,
+                            &answers,
+                            cx,
+                        )
+                    })
+            }
             PromptBuilder::Custom(_) => {
                 self.build_custom_prompt(&prompt_builder, level, message, detail, &answers, cx)
             }

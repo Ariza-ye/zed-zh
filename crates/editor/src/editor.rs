@@ -3324,6 +3324,7 @@ impl Editor {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
+        let placeholder_text = ui::utils::localize_text(placeholder_text);
         let multibuffer = cx
             .new(|cx| MultiBuffer::singleton(cx.new(|cx| Buffer::local(placeholder_text, cx)), cx));
 

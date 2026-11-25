@@ -16,7 +16,10 @@ use menu::{SelectNext, SelectPrevious};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use settings::{DefaultOpenBehavior, Settings};
-use ui::{ButtonLike, Divider, DividerColor, KeyBinding, Vector, VectorName, prelude::*};
+use ui::{
+    ButtonLike, Divider, DividerColor, KeyBinding, Vector, VectorName, prelude::*,
+    utils::localize_text,
+};
 use util::ResultExt;
 use zed_actions::{
     Extensions, OpenKeymap, OpenOnboarding, OpenSettings, assistant::ToggleFocus, command_palette,
@@ -57,7 +60,7 @@ impl RenderOnce for SectionHeader {
             .mb_2()
             .gap_2()
             .child(
-                Label::new(self.title.to_ascii_uppercase())
+                Label::new(localize_text(&self.title).to_ascii_uppercase())
                     .buffer_font(cx)
                     .color(Color::Muted)
                     .size(LabelSize::XSmall),

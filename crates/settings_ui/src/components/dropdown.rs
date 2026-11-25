@@ -4,7 +4,7 @@ use gpui::{App, ElementId, IntoElement, RenderOnce, SharedString};
 use heck::ToTitleCase as _;
 use ui::{
     ButtonSize, ContextMenu, Disableable as _, DropdownMenu, DropdownStyle, FluentBuilder as _,
-    IconPosition, px,
+    IconPosition, px, utils::localize_text,
 };
 
 #[derive(IntoElement)]
@@ -92,17 +92,20 @@ impl EnumVariantDropdown {
 impl RenderOnce for EnumVariantDropdown {
     fn render(self, window: &mut ui::Window, cx: &mut ui::App) -> impl gpui::IntoElement {
         let current_value_label = self.labels[self.selected_index];
+        let display_label = move |label: &str| {
+            if self.should_do_title_case {
+                localize_text(&label.to_title_case()).to_string()
+            } else {
+                localize_text(label).to_string()
+            }
+        };
 
         let context_menu = window.use_keyed_state(current_value_label, cx, |window, cx| {
             ContextMenu::new(window, cx, move |mut menu, _, _| {
                 for (index, &label) in self.labels.iter().enumerate() {
                     let on_change = self.on_change.clone();
                     menu = menu.toggleable_entry(
-                        if self.should_do_title_case {
-                            label.to_title_case()
-                        } else {
-                            label.to_string()
-                        },
+                        display_label(label),
                         index == self.selected_index,
                         IconPosition::End,
                         None,
@@ -115,28 +118,20 @@ impl RenderOnce for EnumVariantDropdown {
             })
         });
 
-        DropdownMenu::new(
-            self.id,
-            if self.should_do_title_case {
-                current_value_label.to_title_case()
-            } else {
-                current_value_label.to_string()
-            },
-            context_menu,
-        )
-        .when_some(self.aria_label, |this, label| this.aria_label(label))
-        .when_some(self.aria_description, |this, description| {
-            this.aria_description(description)
-        })
-        .disabled(self.disabled)
-        .when_some(self.tab_index, |elem, tab_index| elem.tab_index(tab_index))
-        .trigger_size(ButtonSize::Medium)
-        .style(DropdownStyle::Outlined)
-        .attach(gpui::Anchor::BottomRight)
-        .offset(gpui::Point {
-            x: px(0.0),
-            y: px(2.0),
-        })
-        .into_any_element()
+        DropdownMenu::new(self.id, display_label(current_value_label), context_menu)
+            .when_some(self.aria_label, |this, label| this.aria_label(label))
+            .when_some(self.aria_description, |this, description| {
+                this.aria_description(description)
+            })
+            .disabled(self.disabled)
+            .when_some(self.tab_index, |elem, tab_index| elem.tab_index(tab_index))
+            .trigger_size(ButtonSize::Medium)
+            .style(DropdownStyle::Outlined)
+            .attach(gpui::Anchor::BottomRight)
+            .offset(gpui::Point {
+                x: px(0.0),
+                y: px(2.0),
+            })
+            .into_any_element()
     }
 }

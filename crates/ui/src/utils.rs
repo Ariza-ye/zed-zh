@@ -19,6 +19,7 @@ pub use constants::*;
 pub use control_characters::*;
 pub use corner_solver::{CornerSolver, inner_corner_radius};
 pub use format_distance::*;
+pub use i18n::tr as localize_text;
 pub use retained_focus::*;
 pub use search_input::*;
 pub use with_rem_size::*;

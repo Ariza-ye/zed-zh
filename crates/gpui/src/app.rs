@@ -959,6 +959,7 @@ pub struct App {
     pub(crate) layout_id_buffer: Vec<LayoutId>, // We recycle this memory across layout requests.
     pub(crate) propagate_event: bool,
     pub(crate) prompt_builder: Option<PromptBuilder>,
+    pub(crate) native_prompt_text: fn(&str) -> &str,
     pub(crate) window_invalidators_by_entity:
         FxHashMap<EntityId, FxHashMap<WindowId, WindowInvalidator>>,
     pub(crate) tracked_entities: FxHashMap<WindowId, FxHashSet<EntityId>>,
@@ -1085,6 +1086,7 @@ impl App {
                 layout_id_buffer: Default::default(),
                 propagate_event: true,
                 prompt_builder: Some(PromptBuilder::Default),
+                native_prompt_text: |text| text,
                 #[cfg(any(feature = "inspector", debug_assertions))]
                 inspector_renderer: None,
                 #[cfg(any(feature = "inspector", debug_assertions))]
@@ -3220,6 +3222,11 @@ impl App {
         + 'static,
     ) {
         self.prompt_builder = Some(PromptBuilder::Custom(Box::new(renderer)));
+    }
+
+    /// Set the text translator used by native prompts.
+    pub fn set_native_prompt_text_translator(&mut self, translate: fn(&str) -> &str) {
+        self.native_prompt_text = translate;
     }
 
     /// Reset the prompt builder to the default implementation.

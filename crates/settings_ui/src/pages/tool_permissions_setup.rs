@@ -8,7 +8,9 @@ use settings::{Settings as _, SettingsStore, ToolPermissionMode};
 use shell_command_parser::extract_commands;
 use std::sync::Arc;
 use theme_settings::ThemeSettings;
-use ui::{Banner, ContextMenu, Divider, PopoverMenu, Severity, Tooltip, prelude::*};
+use ui::{
+    Banner, ContextMenu, Divider, PopoverMenu, Severity, Tooltip, prelude::*, utils::localize_text,
+};
 use util::ResultExt as _;
 use util::shell::ShellKind;
 
@@ -128,7 +130,7 @@ fn render_inline_code_markdown(text: &str, cx: &App) -> StyledText {
     let mut in_code = false;
     let mut code_start = 0;
 
-    for ch in text.chars() {
+    for ch in localize_text(text).chars() {
         if ch == '`' {
             if in_code {
                 highlights.push((

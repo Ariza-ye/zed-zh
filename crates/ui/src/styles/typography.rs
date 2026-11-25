@@ -5,7 +5,7 @@ use gpui::{
 };
 use theme::ActiveTheme;
 
-use crate::{Color, rems_from_px};
+use crate::{Color, rems_from_px, utils::localize_label};
 
 /// Extends [`gpui::Styled`] with typography-related styling methods.
 pub trait StyledTypography: Styled + Sized {
@@ -227,7 +227,7 @@ impl Headline {
     pub fn new(text: impl Into<SharedString>) -> Self {
         Self {
             size: HeadlineSize::default(),
-            text: text.into(),
+            text: localize_label(text),
             color: Color::default(),
         }
     }

@@ -9,6 +9,7 @@ use std::sync::OnceLock;
 
 mod actions;
 mod phrases;
+mod settings;
 mod ui;
 mod words;
 
@@ -22,7 +23,7 @@ pub fn translate(text: &str) -> Option<&'static str> {
     if !enabled() {
         return None;
     }
-    ui::lookup(text)
+    ui::lookup(text).or_else(|| settings::lookup(text))
 }
 
 /// 翻译界面文本(按钮、标签、提示等)。未命中返回原文。

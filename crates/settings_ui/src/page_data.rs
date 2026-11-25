@@ -7,7 +7,7 @@ use settings::{
 use std::sync::{Arc, OnceLock};
 use strum::{EnumMessage, IntoDiscriminant as _, VariantArray};
 use theme::SystemAppearance;
-use ui::IntoElement;
+use ui::{IntoElement, utils::localize_text};
 
 use crate::{
     ActionLink, DynamicItem, PROJECT, SettingField, SettingItem, SettingsFieldMetadata,
@@ -11425,7 +11425,8 @@ fn non_editor_language_settings_data() -> Box<[SettingsPageItem]> {
                         SemanticTokens::VARIANTS
                             .iter()
                             .filter_map(|v| {
-                                v.get_documentation().map(|doc| format!("{v:?}: {doc}"))
+                                v.get_documentation()
+                                    .map(|doc| format!("{v:?}: {}", localize_text(doc)))
                             })
                             .join("\n")
                             .leak()

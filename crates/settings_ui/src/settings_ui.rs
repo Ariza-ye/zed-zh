@@ -40,7 +40,7 @@ use theme_settings::ThemeSettings;
 use ui::{
     Banner, ContextMenu, Divider, DropdownMenu, DropdownStyle, IconButtonShape, KeyBinding,
     KeybindingHint, PopoverMenu, Scrollbars, Switch, Tooltip, TreeViewItem, WithScrollbar,
-    prelude::*,
+    prelude::*, utils::localize_text,
 };
 
 use util::{ResultExt as _, paths::PathStyle, rel_path::RelPath};
@@ -330,8 +330,8 @@ impl SettingFieldRenderer {
                     field,
                     settings_file.clone(),
                     metadata,
-                    item.title,
-                    item.description,
+                    localize_text(item.title),
+                    localize_text(item.description),
                     window,
                     cx,
                 );
@@ -896,7 +896,7 @@ fn open_settings_editor_with(
         cx.open_window(
             WindowOptions {
                 titlebar: Some(TitlebarOptions {
-                    title: Some("Zed — Settings".into()),
+                    title: Some(localize_text("Zed — Settings").into()),
                     appears_transparent: true,
                     traffic_light_position: Some(point(px(12.0), px(12.0))),
                 }),
@@ -1454,9 +1454,12 @@ fn render_settings_item_layout(
                         })
                         .when_some(modified_in, |this, modified_in| {
                             this.child(
-                                Label::new(format!("\u{2014}  Modified in {modified_in}"))
-                                    .color(Color::Muted)
-                                    .size(LabelSize::Small),
+                                Label::new(
+                                    localize_text("—  Modified in {scope}")
+                                        .replace("{scope}", &modified_in),
+                                )
+                                .color(Color::Muted)
+                                .size(LabelSize::Small),
                             )
                         }),
                 )
@@ -2410,8 +2413,9 @@ impl SettingsWindow {
         fn split_into_words(parts: &[&str]) -> Vec<String> {
             parts
                 .iter()
-                .flat_map(|s| {
-                    s.split(|c: char| !c.is_alphanumeric())
+                .flat_map(|&text| [Some(text), localized_alias(text)].into_iter().flatten())
+                .flat_map(|text| {
+                    text.split(|c: char| !c.is_alphanumeric())
                         .filter(|w| !w.is_empty())
                         .map(|w| w.to_lowercase())
                 })
@@ -2422,13 +2426,20 @@ impl SettingsWindow {
         let mut documents: Vec<SearchDocument> = Vec::default();
         let mut fuzzy_match_candidates = Vec::default();
 
+        fn localized_alias(text: &str) -> Option<&str> {
+            let translated = localize_text(text);
+            (translated != text).then_some(translated)
+        }
+
         fn push_candidates(
             fuzzy_match_candidates: &mut Vec<StringMatchCandidate>,
             key_index: usize,
             input: &str,
         ) {
-            for word in input.split_ascii_whitespace() {
-                fuzzy_match_candidates.push(StringMatchCandidate::new(key_index, word));
+            for text in [Some(input), localized_alias(input)].into_iter().flatten() {
+                for word in text.split_ascii_whitespace() {
+                    fuzzy_match_candidates.push(StringMatchCandidate::new(key_index, word));
+                }
             }
         }
 
@@ -2979,7 +2990,7 @@ impl SettingsWindow {
 
     pub(crate) fn display_name(&self, file: &SettingsUiFile) -> Option<String> {
         match file {
-            SettingsUiFile::User => Some("User".to_string()),
+            SettingsUiFile::User => Some(localize_text("User").to_string()),
             SettingsUiFile::Project((worktree_id, path)) => self
                 .worktree_root_dirs
                 .get(&worktree_id)
@@ -3035,7 +3046,7 @@ impl SettingsWindow {
         h_flex()
             .id("settings-ui-search")
             .role(Role::SearchInput)
-            .aria_label("Search Settings")
+            .aria_label(localize_text("Search Settings"))
             .aria_value(a11y_value)
             .track_focus(&self.search_bar.focus_handle(cx))
             .a11y_synthetic_children(a11y_text_runs)
@@ -3315,7 +3326,7 @@ impl SettingsWindow {
                             ),
                             cx.theme().colors().surface_background.opacity(0.5),
                         )
-                        .suffix(focus_keybind_label),
+                        .suffix(localize_text(focus_keybind_label)),
                     ),
             )
     }

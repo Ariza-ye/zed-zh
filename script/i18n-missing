@@ -3,7 +3,8 @@
 
 用法:
     script/i18n-missing            按出现次数列出缺失文案
-    script/i18n-missing --stale    列出词条表里源码已不再使用的文案
+    script/i18n-missing --settings  仅检查设置页标题和说明
+    script/i18n-missing --stale    列出扫描器未找到引用的词条
 """
 
 import os
@@ -12,29 +13,56 @@ import sys
 import collections
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-I18N_UI = os.path.join(ROOT, "crates/i18n/src/ui.rs")
-I18N_PHRASES = os.path.join(ROOT, "crates/i18n/src/phrases.rs")
+I18N_FILES = ("crates/i18n/src/ui.rs", "crates/i18n/src/settings.rs")
+SETTINGS_PAGE_DATA = "crates/settings_ui/src/page_data.rs"
+SETTINGS_NAMES = {"AI", "LSP", "Prettier", "Vim"}
+STRING = r'"((?:[^"\\]|\\[\s\S])+)"'
+SETTINGS_PATTERNS = [
+    re.compile(r'SettingsPageItem::SectionHeader\(\s*' + STRING),
+    re.compile(r'\btitle:\s*' + STRING),
+    re.compile(r'\bdescription:\s*(?:Some\(\s*)?' + STRING),
+]
 
-# Label::new("...") 与 Button::new(id, "...") 是两个主要入口,
-# 渲染前都会经过 i18n::translate。
 PATTERNS = [
-    re.compile(r'Label::new\(\s*"((?:[^"\\]|\\.)*)"\s*\)'),
-    re.compile(r'Label::new\(\s*"((?:[^"\\]|\\.)*)"\s*\.to_string\(\)\s*\)'),
-    re.compile(r'Button::new\(\s*"[^"]*"\s*,\s*"((?:[^"\\]|\\.)*)"\s*\)'),
+    re.compile(r'(?:Label|Headline)::new\(\s*' + STRING),
+    re.compile(r'Button::new\(\s*"[^"]*"\s*,\s*' + STRING),
+    re.compile(
+        r'Tooltip::(?:simple|text|for_action(?:_title)?(?:_in)?|with_meta(?:_in)?)\(\s*'
+        + STRING
+    ),
+    re.compile(r'\b(?:set_placeholder_text|with_placeholder)\(\s*' + STRING),
+    re.compile(r'(?:PromptLevel::\w+,|\blocalize_text\(|\bi18n::tr\()\s*' + STRING),
 ]
 
 SKIP_DIRS = {"target", "node_modules", ".git"}
 SKIP_PATHS = ("/gpui/examples/", "/gpui_web/examples/", "/gpui/tests/", "/tests/")
 
 
-def load_keys(path):
-    with open(path, encoding="utf-8") as handle:
-        source = handle.read()
-    return set(re.findall(r'"((?:[^"\\]|\\.)+)"\s*=>\s*"', source))
+def read_source(relative_path):
+    with open(os.path.join(ROOT, relative_path), encoding="utf-8") as handle:
+        return handle.read()
+
+
+def load_keys():
+    return {
+        key
+        for path in I18N_FILES
+        for key in re.findall(STRING + r'\s*=>\s*"', read_source(path))
+    }
+
+
+def scan_settings():
+    source = read_source(SETTINGS_PAGE_DATA)
+    return collections.Counter(
+        text
+        for pattern in SETTINGS_PATTERNS
+        for text in pattern.findall(source)
+        if text not in SETTINGS_NAMES
+    )
 
 
 def scan():
-    found = collections.Counter()
+    found = scan_settings()
     for dirpath, dirnames, filenames in os.walk(ROOT):
         dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS]
         normalized = dirpath.replace(os.sep, "/") + "/"
@@ -58,14 +86,14 @@ def scan():
 
 
 def main():
-    keys = load_keys(I18N_UI)
-    found = scan()
+    keys = load_keys()
+    found = scan_settings() if "--settings" in sys.argv else scan()
 
     if "--stale" in sys.argv:
-        stale = sorted(set(keys) - set(found))
+        stale = sorted(keys - found.keys())
         for text in stale:
             print(text)
-        print(f"\n共 {len(stale)} 条词条在源码里已不再使用。", file=sys.stderr)
+        print(f"\n扫描器未找到 {len(stale)} 条词条的引用。", file=sys.stderr)
         return
 
     missing = [(count, text) for text, count in found.items() if text not in keys]
@@ -76,7 +104,9 @@ def main():
 
     total = len(found)
     covered = total - len(missing)
-    print(f"\n已收录 {covered}/{total},缺失 {len(missing)}。", file=sys.stderr)
+    print(f"\n已收录 {covered}/{total}，缺失 {len(missing)}。", file=sys.stderr)
+    if "--settings" in sys.argv and missing:
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -47,7 +47,8 @@ impl ProjectEmptyState {
 impl RenderOnce for ProjectEmptyState {
     fn render(self, _window: &mut Window, _cx: &mut App) -> impl IntoElement {
         let id = format!("empty-state-{}", self.label);
-        let label = format!("Choose one of the options below to use the {}", self.label);
+        let label = i18n::tr("Choose one of the options below to use the {panel}")
+            .replace("{panel}", i18n::tr(&self.label));
 
         v_flex()
             .id(id)
